@@ -48,17 +48,29 @@ def add_technical_debt(request, project_id):
 
     return render(request, 'techdebt/add_technical_debt.html', {'form': form, 'project': project})
 
+
 def early_repayment_guidance(request, project_id):
     project = get_object_or_404(Project, pk=project_id)
     tech_debts = TechnicalDebt.objects.filter(project=project)
 
-    # Implement logic to guide teams on early repayment based on identified patterns
-    # For example, identify technical debts with high impact and suggest early repayment strategies
+    # Train the machine learning model
+    model, accuracy = TechnicalDebt.train_model()
 
-    high_impact_tech_debts = tech_debts.filter(impact_category='High Impact')
-    
+    # Predict impact categories for tech debts
+    tech_debts_with_predictions = []
+    for tech_debt in tech_debts:
+        predicted_category = model.predict([[tech_debt.metric_value]])[0]
+        predicted_category_label = label_encoder.inverse_transform([predicted_category])[0]
+        tech_debts_with_predictions.append((tech_debt, predicted_category_label))
+
+    # Implement logic to guide teams on early repayment based on identified patterns
+    # For example, identify technical debts with high predicted impact and suggest early repayment strategies
+
+    high_predicted_impact_tech_debts = [item for item in tech_debts_with_predictions if item[1] == 'High Impact']
+
     return render(request, 'techdebt/early_repayment_guidance.html', {
         'project': project,
-        'tech_debts': tech_debts,
-        'high_impact_tech_debts': high_impact_tech_debts,
+        'tech_debts_with_predictions': tech_debts_with_predictions,
+        'high_predicted_impact_tech_debts': high_predicted_impact_tech_debts,
+        'model_accuracy': accuracy,
     })
